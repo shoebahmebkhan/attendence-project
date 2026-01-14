@@ -1,0 +1,28 @@
+version: "3.8"
+
+services:
+  backend:
+    image: shoebak/attendance-backend:latest
+    deploy:
+      replicas: 2
+      restart_policy:
+        condition: on-failure
+    ports:
+      - "8000:8000"
+    networks:
+      - attendance-net
+
+  frontend:
+    image: shoebak/attendance-frontend:latest
+    deploy:
+      replicas: 2
+      restart_policy:
+        condition: on-failure
+    ports:
+      - "80:80"
+    networks:
+      - attendance-net
+
+networks:
+  attendance-net:
+    driver: overlay
