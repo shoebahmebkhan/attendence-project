@@ -2,65 +2,48 @@ pipeline {
     agent any
 
     environment {
-        DOCKERHUB_USER = "shoebak"
-        BACKEND_IMAGE  = "attendance-backend"
-        FRONTEND_IMAGE = "attendance-frontend"
-        STACK_NAME     = "attendance"
+        DOCKERHUB_USER = credentials('dockerhub-username')
+        DOCKERHUB_PASS = credentials('dockerhub-password')
+        PROJECT_NAME   = "attendence-project"
     }
 
     stages {
-
         stage('Checkout') {
             steps {
                 git 'https://github.com/shoebahmebkhan/attendence-project.git'
             }
         }
 
-        stage('Docker Login') {
-            steps {
-                withCredentials([string(credentialsId: 'dockerhub-password', variable: 'DOCKER_PASS')]) {
-                    sh '''
-                    echo "$DOCKER_PASS" | docker login -u $DOCKERHUB_USER --password-stdin
-                    '''
-                }
-            }
-        }
-
         stage('Build Images') {
             steps {
-                sh '''
-                docker build -t $DOCKERHUB_USER/$BACKEND_IMAGE:latest backend
-                docker build -t $DOCKERHUB_USER/$FRONTEND_IMAGE:latest frontend
-                '''
+                sh "docker build -t ${DOCKERHUB_USER}/${PROJECT_NAME}-backend:latest -f Dockerfile.backend ."
+                sh "docker build -t ${DOCKERHUB_USER}/${PROJECT_NAME}-frontend:latest -f Dockerfile.frontend ."
             }
         }
 
-        stage('Push Images') {
+        stage('DockerHub Login & Push') {
             steps {
-                sh '''
-                docker push $DOCKERHUB_USER/$BACKEND_IMAGE:latest
-                docker push $DOCKERHUB_USER/$FRONTEND_IMAGE:latest
-                '''
+                sh "echo ${DOCKERHUB_PASS} | docker login -u ${DOCKERHUB_USER} --password-stdin"
+                sh "docker push ${DOCKERHUB_USER}/${PROJECT_NAME}-backend:latest"
+                sh "docker push ${DOCKERHUB_USER}/${PROJECT_NAME}-frontend:latest"
             }
         }
 
-        stage('Deploy to Docker Swarm') {
+        stage('Deploy to Swarm') {
             steps {
-                sh '''
-                docker stack deploy -c docker-stack.yml $STACK_NAME
-                '''
+                sh "export DOCKERHUB_USER=${DOCKERHUB_USER}"
+                sh "docker pull ${DOCKERHUB_USER}/${PROJECT_NAME}-backend:latest"
+                sh "docker pull ${DOCKERHUB_USER}/${PROJECT_NAME}-frontend:latest"
+                sh "docker stack deploy -c docker-compose.yml attendence"
             }
         }
     }
 
     post {
-        success {
-            echo "Deployment completed successfully on Docker Swarm"
-        }
-        failure {
-            echo " Deployment failed"
-        }
+        success { echo "Deployment successful!" }
+        failure { echo "Deployment failed!" }
     }
 }
+
 
 
