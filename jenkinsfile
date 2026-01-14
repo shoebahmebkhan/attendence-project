@@ -3,9 +3,9 @@ pipeline {
 
     environment {
         DOCKERHUB_USER = "shoebak"
-        BACKEND_IMAGE  = "${DOCKERHUB_USER}/attendance-backend"
-        FRONTEND_IMAGE = "${DOCKERHUB_USER}/attendance-frontend"
-        TAG            = "latest"
+        BACKEND_IMAGE  = "attendance-backend"
+        FRONTEND_IMAGE = "attendance-frontend"
+        STACK_NAME     = "attendance"
     }
 
     stages {
@@ -16,32 +16,30 @@ pipeline {
             }
         }
 
-        stage('Build Docker Images') {
+        stage('Docker Login') {
             steps {
-                sh '''
-                docker build -t $BACKEND_IMAGE:$TAG backend
-                docker build -t $FRONTEND_IMAGE:$TAG frontend
-                '''
+                withCredentials([string(credentialsId: 'dockerhub-password', variable: 'DOCKER_PASS')]) {
+                    sh '''
+                    echo "$DOCKER_PASS" | docker login -u $DOCKERHUB_USER --password-stdin
+                    '''
+                }
             }
         }
 
-        stage('Docker Login') {
+        stage('Build Images') {
             steps {
-                withCredentials([usernamePassword(
-                    credentialsId: 'dockerhub-creds',
-                    usernameVariable: 'DOCKER_USER',
-                    passwordVariable: 'DOCKER_PASS'
-                )]) {
-                    sh 'echo $DOCKER_PASS | docker login -u $DOCKER_USER --password-stdin'
-                }
+                sh '''
+                docker build -t $DOCKERHUB_USER/$BACKEND_IMAGE:latest backend
+                docker build -t $DOCKERHUB_USER/$FRONTEND_IMAGE:latest frontend
+                '''
             }
         }
 
         stage('Push Images') {
             steps {
                 sh '''
-                docker push $BACKEND_IMAGE:$TAG
-                docker push $FRONTEND_IMAGE:$TAG
+                docker push $DOCKERHUB_USER/$BACKEND_IMAGE:latest
+                docker push $DOCKERHUB_USER/$FRONTEND_IMAGE:latest
                 '''
             }
         }
@@ -49,9 +47,7 @@ pipeline {
         stage('Deploy to Docker Swarm') {
             steps {
                 sh '''
-                echo "Deploying Attendance stack to Docker Swarm"
-                docker stack deploy -c docker-compose.yml attendance
-                docker service ls
+                docker stack deploy -c docker-stack.yml $STACK_NAME
                 '''
             }
         }
@@ -59,11 +55,12 @@ pipeline {
 
     post {
         success {
-            echo "Attendance application deployed successfully to Docker Swarm"
+            echo "Deployment completed successfully on Docker Swarm"
         }
         failure {
             echo " Deployment failed"
         }
     }
 }
+
 
