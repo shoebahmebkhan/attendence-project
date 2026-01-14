@@ -1,0 +1,39 @@
+version: "3.8"
+
+services:
+  backend:
+    image: shoebak/attendence-project-backend:latest
+    ports:
+      - "8000:8000"
+    networks:
+      - attendence_net
+    deploy:
+      replicas: 2
+      restart_policy:
+        condition: on-failure
+      placement:
+        constraints:
+          - node.role == worker
+
+  frontend:
+    image: shoebak/attendence-project-frontend:latest
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+    networks:
+      - attendence_net
+    deploy:
+      replicas: 2
+      restart_policy:
+        condition: on-failure
+      placement:
+        constraints:
+          - node.role == worker
+
+networks:
+  attendence_net:
+    driver: overlay
+
+
+
