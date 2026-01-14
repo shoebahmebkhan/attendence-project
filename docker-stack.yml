@@ -3,26 +3,29 @@ version: "3.8"
 services:
   backend:
     image: shoebak/attendance-backend:latest
+    ports:
+      - "8000:8000"
     deploy:
       replicas: 2
       restart_policy:
         condition: on-failure
-    ports:
-      - "8000:8000"
     networks:
-      - attendance-net
+      - app_net
 
   frontend:
     image: shoebak/attendance-frontend:latest
+    ports:
+      - "80:80"
     deploy:
       replicas: 2
       restart_policy:
         condition: on-failure
-    ports:
-      - "80:80"
     networks:
-      - attendance-net
+      - app_net
+    depends_on:
+      - backend
 
 networks:
-  attendance-net:
+  app_net:
     driver: overlay
+
